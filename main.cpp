@@ -1,3 +1,10 @@
+/* Lab03: KNN
+ * Omar Thor
+ * Aurora Hernandez
+ * 
+ */
+
+
 
 #include <iostream>
 #include <iomanip>
@@ -440,6 +447,36 @@ protected:
     label_attribute label_attr;
     size_t rows;
 };
+
+/*
+ * Distance between two points
+ * 
+ */
+//double distance (const point & apoint) const {
+  //  const double x1_coordinate, y1_coordinate, x2_
+    
+//}
+
+struct points
+{
+    float x, y;
+    points (float p1 = 0, float p1 = 0) : x(p1), y(p1) { }
+    
+};
+
+//typedef std:: vector<points> pointVector;
+//typedef std:: map<int, pointVector> mapPointvector;
+
+
+float distace_calc (const points& p1, const points& p2){
+    float diff_Y = p1.y - p2.y;
+    float diff_X = p1.x - p2.x;
+    return sqrt((diff_Y*diff_X) + (diff_X * diff_X));
+}
+
+//void distance_display ( const mapPointvector& val, int val_1, int val_2) {
+    
+//}
 
 
 int main(int argc, char** argv) {
