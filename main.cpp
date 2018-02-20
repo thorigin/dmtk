@@ -72,19 +72,24 @@ auto entropy(Iterator first, Iterator last, UnaryOperator op) {
  */
 template<typename Container>
 auto normalize_simple(Container& cont) {
-    typename Container::value_type min, max;
-    for(auto it = std::begin(cont), end = std::end(cont); it != end; ++it) {
-        if(*it > max) {
-            max = *it;
+    if(std::begin(cont) != std::end(cont)) {
+        auto it = std::begin(cont), end = std::end(cont);
+        using val_type = typename Container::value_type;
+        val_type min = (*it++),
+                 max = (*it++);
+        for(; it != end; ++it) {
+            if(*it > max) {
+                max = *it;
+            }
+            if(*it < min) {
+                min = *it;
+            }
         }
-        if(*it < min) {
-            min = *it;
-        }
+        auto range = max-min;
+        std::transform(std::begin(cont), std::end(cont), std::begin(cont), [&](const auto& x) {
+            return (x - min) / range;
+        });
     }
-    auto range = max-min;
-    std::transform(std::begin(cont), std::end(cont), std::begin(cont), [&](const auto& x) {
-        return (x - min) / range;
-    });
 }
 
 /**
@@ -103,7 +108,7 @@ typename Container::value_type distace_calc (const Container& cont1, const Conta
             //it_2_end = std::end(cont2);
             it_1 != it_1_end;
             ++it_1, ++it_2) {
-        sum += (*it_1) * (*it_1) - (*it_2) * (*it_2);
+        sum += (*it_1 - *it_2) * (*it_1 - *it_2);
     }
     return sqrt(sum);
 }
@@ -321,6 +326,8 @@ template<typename ValueAttribute = float_attribute>
 struct model {
 
     using value_attribute = ValueAttribute;
+    
+    using value_type = typename value_attribute::value_type;
 
     using label_value_type = typename label_attribute::value_type;
 
@@ -385,9 +392,10 @@ struct model {
                     if(iss >> value) {
                         value.erase(std::remove_if(value.begin(), value.end(), [](const auto& v) { return !std::isalnum(v) && v != '.'; }), value.end());
                         if(row_idx == attr_count-1) {
-                            this->label_attr.push_back(value);
+                            this->label_attr.emplace_back(std::move(value));
                         } else {
                             this->value_attrs[row_idx].push_back(std::atof(value.c_str()));
+                            
                         }
                     }
                 }
@@ -414,6 +422,12 @@ struct model {
         return this->label_attr;
     }
 
+    void normalize() {
+        for(auto& attr : value_attrs) {
+            normalize_simple(attr);
+        }
+    }
+    
     double entropy_d() {
         std::map<std::string, int> freq;
         size_t total = 0;
@@ -457,18 +471,19 @@ struct model {
      * @param k
      * @return 
      */
-    std::string_view predict_by_knn(model& model, size_t row, size_t k) {
+    std::string predict_by_knn(model& sample_model, const model& test_model, const size_t& test_row, size_t k) {
+        
         using val_type = typename value_attribute::value_type;
         using val_vec = std::vector<val_type>;
 
-        val_vec pos_testing, pos_sample;
+        val_vec pos_test, pos_sample;
+        
         //Read row as vector
-        pos_testing.clear();
-        for(auto& attr : value_attrs) {
-            pos_testing.emplace_back(attr[row]);
+        for(auto& attr : test_model.value_attrs) {
+            pos_test.emplace_back(attr[test_row]);
         }
 
-        val_type min_dist = std::numeric_limits<val_type>::max();
+        
 
         std::set<size_t> used_rows;
 
@@ -480,42 +495,51 @@ struct model {
         //O(n^2). Could be better?
 
         //Find K closest points and store accuracy
-        for(size_t k_sample = 0; k_sample < k; ++k_sample) {
-            size_t min_row = 0;
-            for(size_t row_sample = 0; row_sample < rows; ++row_sample) {
+        for(size_t k_samples_idx = 0; k_samples_idx < k; ++k_samples_idx) {
+                        
+            pos_sample.clear();          
+            for(auto& sample_attr : sample_model.value_attrs) {
+                pos_sample.emplace_back(sample_attr[0]);
+            }
+            
+            val_type closest_unused_sample_row_dist = distace_calc(pos_test, pos_sample);
+            size_t closest_unused_sample_row = 0;
+            
+            for(size_t sample_row_idx = 1; sample_row_idx < sample_model.rows; ++sample_row_idx) {
 
-                //Don't compare against itself
-                if(row_sample != row) {
-                    //Check if row has already been sampled
-                    if(used_rows.find(row_sample) == used_rows.end()) {
+                //Check if row has already been sampled
+                if(used_rows.find(sample_row_idx) == used_rows.end()) {
 
-                        pos_sample.clear();
-                        for(auto& attr : value_attrs) {
-                            pos_sample.emplace_back(attr[row]);
-                        }
+                    pos_sample.clear();
+                    for(auto& sample_attr : sample_model.value_attrs) {
+                        pos_sample.emplace_back(sample_attr[sample_row_idx]);
+                    }
 
-                        auto res = distace_calc(pos_testing, pos_sample);
+                    auto temp_sample_dist = distace_calc(pos_test, pos_sample);
 
-                        if(min_dist > res) {
-                            min_dist = res;
-                            min_row = row_sample;
-                        }
-
+                    if(closest_unused_sample_row_dist > temp_sample_dist) {
+                        closest_unused_sample_row_dist = temp_sample_dist;
+                        closest_unused_sample_row = sample_row_idx;
                     }
                 }
             }
-            used_rows.emplace(min_row);
-            ++counters[model.label_attr[min_row]];
+            used_rows.emplace(closest_unused_sample_row);
+            ++counters[sample_model.label_attr[closest_unused_sample_row]];
         }
 
-        auto counter_it = counters.begin(), end = counters.end();
-        label_value_type guess = (*counter_it++).first;
-        size_t guess_freq = (*counter_it).second;
-        for(; counter_it != end; ++counter_it) {
-            if((*counter_it).second > guess_freq) {
-                guess = (*counter_it).first;
-                guess_freq = (*counter_it).second;
+        auto counters_it = counters.begin(), counters_end = counters.end();
+        label_value_type guess = (*counters_it++).first;
+        size_t guess_freq = (*counters_it++).second;
+        for(;counters_it != counters_end; ++counters_it) {
+            const auto& c = (*counters_it);
+            if(c.second >= guess_freq) {
+                guess =  c.first;
+                guess_freq = c.second;
             }
+        }
+        
+        if(guess.empty()) {
+            throw std::runtime_error("No labels matched");
         }
         
         return guess;
@@ -527,47 +551,45 @@ struct model {
      */
     std::map<size_t, float> find_optimal_knn(size_t test_runs) {
 
-        std::map<size_t, std::vector<float>> k_result;
+        std::map<size_t, std::vector<float>> test_model_predictions;
         for(size_t i = 0; i < test_runs; ++i) {
 
-            std::pair<model, model> ms = split(0.75);
+            auto [sample_model, test_model] = split(0.75);
 
-            std::cout << "Test run #" << (i+1) << "model split to (train = " << ms.first.size() << ", test = " << ms.second.size() << ")\n";
+            std::cout << "Test run #" << (i+1) << " model split to (train = " << sample_model.size() << ", test = " << test_model.size() << ")\n";
 
             //For every K
-            for(size_t k = 1, k_max = ms.first.rows; k < k_max; k+=2) { //test only odd numbers
+            for(size_t k = 1, k_max = sample_model.rows; k < k_max; k+=2) { //test only odd numbers
 
                 //std::cout << "Testing K = " << k << ", with N = " << ms.first.rows << "\n";
                 
                 size_t correct_labels = 0;
                 //Test every row for the value K
-                for(size_t row = 0, row_max = ms.first.rows; row < row_max; ++row) {
-                    if(predict_by_knn(ms.first, row, k) == ms.first.label_attr[row]) {
+                for(size_t test_row = 0, test_row_max = test_model.rows; test_row < test_row_max; ++test_row) {
+                    
+                    //Attempt to predict test_row with k nearest neighbours
+                    const auto& predicated_label = predict_by_knn(sample_model, test_model, test_row, k);                   
+                    const auto& expected_label = test_model.label_attr[test_row];
+                    
+                    if(predicated_label == expected_label) {
                         ++correct_labels;
-                    }                    
+                    }
                 }
                 // Save the correctness of the training                    
-                k_result[k].push_back(static_cast<float>(correct_labels) / static_cast<float>(ms.first.rows));
-            }
-
-            for(auto& res : k_result) {
-                std::cout << "K = " << res.first << " (expected) accuracy: ";
-                for(auto& a : res.second) {
-                    std::cout << a << "% ";
-                }
-                std::cout << "\n";
+                test_model_predictions[k].push_back(static_cast<float>(correct_labels) / static_cast<float>(test_model.rows));
             }
         }
+        
         std::map<size_t, float> ret;
-        for(auto& res : k_result) {
-            std::cout << "K = " << res.first << " accuracy: ";
+        for(auto& res : test_model_predictions) {
+            std::cout << "K = " << res.first << ", runs = " << res.second.size() << ", mean = ";
             float mean = 0;
-            for(auto& a : res.second) {
-                 std::cout << a << "% ";
+            for(const auto& a : res.second) {
                  mean += a;
             }
             ret[res.first] = mean / res.second.size();
-            std::cout << '\n';
+            
+            std::cout << ret[res.first]*100 << "%\n";
         }
         return ret;
     }
@@ -582,10 +604,10 @@ struct model {
             this->label_attr = label_attribute(other.label_attr.num(), other.label_attr.name());
         }
         for(size_t attr_idx = 0, attr_idx_len = other.value_attrs.size(); attr_idx < attr_idx_len; ++attr_idx) {
-            value_attrs[attr_idx].emplace_back(other.value_attrs[attr_idx][index]);
+            value_attrs[attr_idx].push_back(other.value_attrs[attr_idx][index]);
         }
 
-        label_attr.emplace_back(other.label_attr[index]);
+        label_attr.push_back(other.label_attr[index]);
         ++this->rows;
     }
 
@@ -635,7 +657,10 @@ int main(int argc, char** argv) {
         std::cout << attr.size() << std::endl;
     }
 
-    test.find_optimal_knn(1);
+    test.normalize();
+   
+    
+    test.find_optimal_knn(100);
 
 //    std::cout << "Random sample is: " << m1.size() << "\n";
 //    std::cout << "Random sample is: " << m2.size() << "\n";
