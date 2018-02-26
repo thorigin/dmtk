@@ -11,6 +11,7 @@ HEADERS_DIRS := include
 TEST_SRCS_DIRS := test
 
 HEADERS := $(shell find $(HEADERS_DIR) -name \*.hpp)
+SRCS_IMPL := $(shell find $(SRC_DIRS) ! -name main.cpp -name \*.cpp)
 SRCS := $(shell find $(SRC_DIRS) -name \*.cpp)
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 
@@ -47,9 +48,9 @@ $(BUILD_DIR)/src/%.cpp.o: src/%.cpp  $(HEADERS)
 ## c++ test source
 $(BUILD_DIR)/test/%.bin : test/%.cpp $(HEADERS)
 	$(MKDIR_P) $(dir $@)
-	$(CXX) $(CCPTESTFLAGS) $(CXXFLAGS) $(TEST_LDFLAGS) $(OBJS) $< -o $@
+	$(CXX) $(CCPTESTFLAGS) $(CXXFLAGS) $(TEST_LDFLAGS) $(SRCS_IMPL) $< -o $@
 
 clean:
-	$(RM) -r $(BUILD_DIR) doc
+	$(RM) -r $(BUILD_DIR)
 
 -include $(DEPS)
