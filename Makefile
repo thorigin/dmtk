@@ -29,8 +29,7 @@ INC_TEST_FLAGS := $(INC_FLAGS)
 
 CCPFLAGS_MODE_DEBUG :=  -O0 -g3
 CCPFLAGS_MODE_RELEASE :=  -O3
-
-CPPFLAGS := -fdiagnostics-color=always -std=c++17 -Wall -Wpedantic -fopenmp -pipe -MMD -MP $(CCPFLAGS_MODE_DEBUG)
+CPPFLAGS := -fdiagnostics-color=auto -std=c++17 -Wall -Wextra -Wpedantic -fopenmp -pipe -MMD -MP $(CCPFLAGS_MODE_DEBUG)
 CCPOBJFLAGS := $(CPPFLAGS) $(INC_FLAGS)
 CCPTESTFLAGS := $(CPPFLAGS) $(TEST_LDFLAGS) $(CPPFLAGS) $(INC_TEST_FLAGS) -DBOOST_TEST_DYN_LINK
 
