@@ -728,10 +728,35 @@ namespace detail {
     };
 }
 
-template<size_t SkipFirstN, typename Container, typename UnaryOp>
-auto average(const Container& cont, UnaryOp&& op) {
-    using res_type = decltype(op(*cont.begin()));
+/**
+ * Returns a tuple of the minimum element and its index
+ *
+ * @param cont the container to perform the scanning for
+ * @param op
+ * @return {Element, index}
+ */
+template<size_t SkipFirstN, typename Container, typename Comparator>
+auto min(const Container& cont, Comparator&& comp) {
+    auto res = std::min_element(std::begin(cont), std::end(cont), std::forward<Comparator>(comp));
+    return std::forward_as_tuple(*res, std::distance(std::begin(cont), res));
+}
 
+/**
+ * Returns a tuple of the maximum element and its index
+ *
+ * @param cont the container to perform the scanning for
+ * @param op
+ * @return {Element, index}
+ */
+template<size_t SkipFirstN, typename Container, typename Comparator>
+auto max(const Container& cont, Comparator&& comp) {
+    auto res = std::min_element(std::begin(cont), std::end(cont), std::forward<Comparator>(comp));
+    return std::forward_as_tuple(*res, std::distance(std::begin(cont), res));
+}
+
+template<size_t SkipFirstN, typename Container, typename UnaryOp>
+auto avg(const Container& cont, UnaryOp&& op) {
+    using res_type = decltype(op(*cont.begin()));
     res_type sum = 0;
     for(auto& v : cont) {
         sum += op(v);
@@ -810,7 +835,7 @@ auto sample_kmeans(Container& cont, size_t test_runs = 1, size_t max_k_test = st
 
             auto [clusters, centroids] = create_k_means_clusters_from_selection<SkipLastN>(cont, selection, rand);
 
-            auto avg = average<SkipLastN>(clusters, [&](const auto& pair) {
+            auto avg_val = avg<SkipLastN>(clusters, [&](const auto& pair) {
                 auto [idx, vec] = pair;
                 return average_distance_euclidean<SkipLastN>(vec, centroids[idx]);
             });
@@ -821,7 +846,7 @@ auto sample_kmeans(Container& cont, size_t test_runs = 1, size_t max_k_test = st
 //            float avg = sum / k_clusters;
             //test_results[k_clusters].emplace_back(avg);
 
-            selection_proximity[k_clusters].emplace_back(selection_values, avg);
+            selection_proximity[k_clusters].emplace_back(selection_values, avg_val);
         }
     }
 
