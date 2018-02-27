@@ -3,81 +3,89 @@
  * Aurora Hernandez
  */
 
-#include "algorithm.hpp"
+#include "dmtk.hpp"
 
-/**
- * Test another model against this model data
- *
- * @param other_model the other model to test points from
- * @param k the k value to test
- * @return the result map
- */
-template<typename Container>
-std::map<size_t, bool> run_tests(const Container& samples, const Container& test, size_t k) {
-    std::map<size_t, bool> res;
-    size_t correct = 0;
-    for(size_t test_idx = 0, test_len = samples.size(); test_idx < test_len; ++test_idx) {
-        const auto& prediction = predict_by_knn<1>(samples, test[test_idx], k);
-        const auto& actual = get_label(test[test_idx]);
-        auto result = prediction == actual;
-        res[test_idx] = result;
-        if(result) {
-            ++correct;
-        }
-        std::cout << "Testing " << (test_idx + 1) << " > prediction: " << prediction << "(Actual: " << actual << ")\n";
-    }
 
-    return res;
-}
+using namespace dmtk;
 
 int main(int, char**) {
 
+    /**
+     * Read in the csv data
+     */
     auto data = csv<float, float, std::string>("datasets/Lab2known.txt");
 
+    /**
+     * Normalize the csv data read in
+     */
     normalize(data);
-//
-    const size_t nr_of_samples = 1000;
+    
+    /**
+     * Number of samples per K
+     */
+    const size_t nr_of_samples = 100;
 
+    /**
+     * Maximum number of K (number of clusters) to test
+     * @param 
+     * @param 
+     * @return 
+     */
     const size_t max_k = data.size();
 
     /**
-     * Gather sample data for kmeans from k=1 to k=10
+     * Gather sample data for K-means from for all possible K values (1-80)
      */
     auto res = sample_kmeans<1>(data, nr_of_samples);
 
-    std::cout << "Per K, the average distance for all elements to their assigned clusters:\n";
-    for(auto [k, info ] : res) {
-        std::cout << "K = " << k << " { ";
-        for(auto [k, v] : info) {
-            UNUSED(k);
-            std::cout << v << ", ";
+        std::cout << "Per K, the SSE for all elements to their assigned clusters, for all test runs:\n";
+        for(auto [k, info ] : res) {
+            std::cout << "K = " << k << " { ";
+            bool first = true;
+            for(auto [k, v] : info) {
+                DMTK_UNUSED(k);
+                //Omit empty clusters
+                //if(!v.empty()) {
+                    if(first) {
+                        first = false;
+                    } else {
+                        std::cout << ", ";
+                    }
+                    bool first2 = true;            
+                    std::cout << "(";
+                    for(auto& sse : v) {
+                        if(first2) {
+                            first2 = false;
+                        } else {
+                            std::cout << ", ";
+                        }
+                        std::cout << sse;
+                    }
+                    std::cout << ")";
+                //}
+            }
+            std::cout << " } \n";
         }
-        std::cout << " } \n";
-    }
 
-    std::cout << "\n\nPer K given below, the best initial selection of nodes based on samples above are:\n";
-    for(size_t k = 1; k < max_k; ++k) {
+        std::cout << "\n\nPer K given below, the average of SSE for all clusters of all test runs:\n";
+        for(size_t k = 1; k < max_k+1; ++k) {
 
-        auto [dist, best_n] = optimizer(
-            [&res, &k](const auto& n) {
-                //lookup k = 1
-                //get the second value of the k=1, n-ths result
-                return std::get<1>(res[k][n]);
-            },
-            std::less<void>(),
-            0, nr_of_samples
-        );
+            auto [dist, best_n] = optimizer(
+                [&res, &k](const auto& n) {
+                    //lookup k = 1
+                    //get the second value of the k=1, n-ths result
+                    return std::get<1>(res[k][n]);
+                },
+                std::less<void>(),
+                0, nr_of_samples
+            );
+            DMTK_UNUSED(best_n);
 
-        std::cout << "\n\nFor K = " << k << ", avg proximity to centroid of nodes in each cluster = " << dist << "\n\t{";
-        for(auto [attr1, attr2, attr3] : std::get<0>(res[k][best_n])) {
-            UNUSED(attr3);
-            std::cout << '(' << attr1 << ',' << attr2 << "), ";
+            auto avg_res = avg(dist, [](auto& x) { return x; });
+            std::cout << "For K = " << k << ", avg SSE of all clusters = " << avg_res << "\n";
         }
 
-        std::cout << "}\n";
-    }
-
-    std::cout << "\n\n";
+        std::cout << "\n\n";
 
     return 0;
 }

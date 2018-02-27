@@ -1,42 +1,26 @@
-#ifndef ELEMENT_HPP
-#define ELEMENT_HPPh
+/**
+ * Copyright (C) Omar Thor, Aurora Hernandez - All Rights Reserved
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ * Proprietary and confidential
+ *
+ * Written by
+ *    Omar Thor <omar@thorigin.com>, 2018
+ *    Aurora Hernandez <aurora@aurorahernandez.com>, 2018
+ */
+
+#ifndef DMTK_ELEMENT_OPERATIONS_HPP
+#define DMTK_ELEMENT_OPERATIONS_HPP
 
 #include <tuple>
 #include <type_traits>
 #include <vector>
-#include "types.hpp"
+
+DMTK_NAMESPACE_BEGIN
 
 /**
- * @file Provides pseudo type Element which is used throughout algorithm header
- * Element can be a tuple or a vector, or a custom data type which defines the following operations
- * This header file provides basic operations on Element
+ * @file Provides for basic arithmetic operations on the pseudo type Element
+ * The implementation is incomplete and only provides the basic operations used
  */
-
-/**
- * typedef for tuple
- */
-template<typename ... T>
-using node = std::tuple<T...>;
-
-struct atom_tag {};
-
-struct arithmetic_atom_tag : atom_tag {};
-
-struct skip_atom_tag : atom_tag {};
-
-template<typename T>
-constexpr bool should_skip_atom_v = std::is_arithmetic<std::decay_t<T>>::value;
-
-/**
- * Provides for compile time selection on whether or not a type is arithmetic
- */
-template<typename T>
-using select_atom_tag_t = std::conditional_t<
-    should_skip_atom_v<T>,
-    arithmetic_atom_tag,
-    skip_atom_tag
->;
-
 
 template<typename T>
 void find_min_max_atom(const T& value, T& min, T& max) {
@@ -95,50 +79,6 @@ void find_min_max(const std::tuple<T...>& value, std::tuple<T...>& min, std::tup
     detail::find_min_max_tuple(value, min, max, std::make_index_sequence<sizeof...(T) - SkipLastN>{});
 }
 
-
-namespace detail {
-
-    template<typename ... T, size_t ... Indexes, typename Result = float>
-    Result distance_euclidean_tuple(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2, std::index_sequence<Indexes...>) {
-        return (0.0f + ... + ((std::get<Indexes>(tuple1) - std::get<Indexes>(tuple2)) * (std::get<Indexes>(tuple1) - std::get<Indexes>(tuple2))));
-    }
-}
-
-/**
- * Euclidean distance function that calculates the distance of values in a two
- * tuples. The behavior for vectors of unequal length is undefined.
- *
- * @param cont1 the container of the first values
- * @param cont2 the container of the second values
- * @param SkipLastN Skip the last number of elements in the tuple
- * @return the distance
- */
-template<size_t SkipLastN = 0, typename ...T>
-auto distance_euclidean(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2){
-    return detail::distance_euclidean_tuple(tuple1, tuple2, std::make_index_sequence<sizeof...(T) - SkipLastN>{});
-}
-
-/**
- * Euclidean distance function that calculates the distance of values in a two
- * vectors. The behavior for vectors of unequal length is undefined.
- *
- * @param cont1 the container of the first values
- * @param cont2 the container of the second values
- * @return the distance
- */
-template<size_t SkipLastN = 0, typename Container>
-auto distance_euclidean(const Container& cont1, const Container& cont2){
-    typename Container::value_type sum = 0;
-    for(auto
-            it_1 = std::begin(cont1),
-            it_1_end = std::end(cont1),
-            it_2 = std::begin(cont2);
-            it_1  != it_1_end;
-            ++it_1, ++it_2) {
-        sum += (*it_1 - *it_2) * (*it_1 - *it_2);
-    }
-    return sqrt(sum);
-}
 
 template<typename T>
 void element_add_atom(T& value, const T& add) {
@@ -221,48 +161,8 @@ void element_div(Container& value, const Divider& divider) {
     }
 }
 
-/**
- * By convention, the label is always the last value in a tuple
- * @param tuple
- * @return a reference to the label
- */
-template<typename ...T>
-auto& get_label(std::tuple<T...>& tuple) {
-    return std::get<sizeof...(T)-1>(tuple);
-}
-
-/**
- * By convention, the label is always the last value in a tuple
- * @param tuple
- * @return a reference to the label
- */
-template<typename ...T>
-const auto& get_label(const std::tuple<T...>& tuple) {
-    return std::get<sizeof...(T)-1>(tuple);
-}
-
-/**
- * By convention, the label is always the last value in a Container
- * @param cont the input container
- * @return a reference to the label
- */
-template<typename Container>
-auto& get_label(Container& cont) {
-    return *(cont.begin() + cont.size()-1);
-}
+DMTK_NAMESPACE_END
 
 
-/**
- * By convention, the label is always the last value in a Container
- * @param cont the input container
- * @return a reference to the label
- */
-template<typename Container>
-const auto& get_label(const Container& cont) {
-    return *(cont.begin() + cont.size()-1);
-}
-
-
-
-#endif /* ELEMENT_HPP */
+#endif /* DMTK_ELEMENT_OPERATIONST_HPP */
 

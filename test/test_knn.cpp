@@ -3,7 +3,11 @@
  * Aurora Hernandez
  */
 
-#include "algorithm.hpp"
+#include "dmtk.hpp"
+
+
+using namespace dmtk;
+
 
 /**
  * Test another model against this model data
@@ -13,8 +17,8 @@
  * @return the result map
  */
 template<typename Container>
-std::map<size_t, bool> run_tests(const Container& samples, const Container& test, size_t k) {
-    std::map<size_t, bool> res;
+std::unordered_map<size_t, bool> run_tests(const Container& samples, const Container& test, size_t k) {
+    std::unordered_map<size_t, bool> res;
     size_t correct = 0;
     for(size_t test_idx = 0, test_len = samples.size(); test_idx < test_len; ++test_idx) {
         const auto& prediction = predict_by_knn<1>(samples, test[test_idx], k);
