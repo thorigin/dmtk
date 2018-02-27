@@ -7,7 +7,7 @@
 
 /**
  * Test another model against this model data
- * 
+ *
  * @param other_model the other model to test points from
  * @param k the k value to test
  * @return the result map
@@ -24,7 +24,7 @@ std::map<size_t, bool> run_tests(const Container& samples, const Container& test
         if(result) {
             ++correct;
         }
-        std::cout << "Testing " << (test_idx + 1) << " > prediction: " << prediction << "(Actual: " << actual << ")\n";
+        std::cout << "Testing " << (test_idx + 1) << " > prediction: " << prediction << "\n";
     }
 
     return res;
@@ -33,15 +33,14 @@ std::map<size_t, bool> run_tests(const Container& samples, const Container& test
 int main(int argc, char** argv) {
 
     try {
-        
+
         auto test = csv<float, float, std::string>("datasets/Lab2known.txt", true);
 
         std::cout << "Size: " << test.size() << '\n';
 
         normalize<1>(test);
 
-        auto opt = test_knn_values<1>(test, 10);
-
+        auto opt = sample_knn_values<1>(test, 10);
 
         auto res_it = std::max_element(opt.begin(), opt.end(), [](const auto& left, const auto& right) {
             return left.first > right.first;
@@ -53,7 +52,7 @@ int main(int argc, char** argv) {
         std::cout << "The best K value is: " << best_k << " with an estimated accuracy of " << best_k_accuracy << "\n";
 
         auto real = csv<float, float, std::string>("datasets/Lab2unknown.txt", true);
-        //    
+        //
         normalize(real);
 
         run_tests(test, real, best_k);

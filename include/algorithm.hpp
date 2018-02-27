@@ -1,6 +1,7 @@
-#ifndef NEWFILE_HPP
-#define NEWFILE_HPP
+#ifndef ALGORITHM_HPP
+#define ALGORITHM_HPP
 
+#include "element.hpp"
 #include <tuple>
 #include <utility>
 #include <cmath>
@@ -16,14 +17,69 @@
 #include <set>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <iostream>
 #include <sstream>
 
+#define UNUSED(x) (void)x;
+
 /**
- * typedef for tuple
+ *@file Provides operations on collections of Element (see element.hpp)
+ * which provide the ability for the user to use custom data types
  */
-template<typename ... T>
-using node = std::tuple<T...>;
+
+//The following is included for hash functionality out of the box
+//see https://stackoverflow.com/questions/1250599/how-to-unordered-settupleint-int
+namespace std{
+    namespace
+    {
+
+        // Code from boost
+        // Reciprocal of the golden ratio helps spread entropy
+        //     and handles duplicates.
+        // See Mike Seymour in magic-numbers-in-boosthash-combine:
+        //     https://stackoverflow.com/questions/4948780
+
+        template <class T>
+        inline void hash_combine(std::size_t& seed, T const& v)
+        {
+            seed ^= hash<T>()(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+        }
+
+        // Recursive template code derived from Matthieu M.
+        template <class Tuple, size_t Index = std::tuple_size<Tuple>::value - 1>
+        struct HashValueImpl
+        {
+          static void apply(size_t& seed, Tuple const& tuple)
+          {
+            HashValueImpl<Tuple, Index-1>::apply(seed, tuple);
+            hash_combine(seed, get<Index>(tuple));
+          }
+        };
+
+        template <class Tuple>
+        struct HashValueImpl<Tuple,0>
+        {
+          static void apply(size_t& seed, Tuple const& tuple)
+          {
+            hash_combine(seed, get<0>(tuple));
+          }
+        };
+    }
+
+    template <typename ... TT>
+    struct hash<std::tuple<TT...>>
+    {
+        size_t
+        operator()(std::tuple<TT...> const& tt) const
+        {
+            size_t seed = 0;
+            HashValueImpl<std::tuple<TT...> >::apply(seed, tt);
+            return seed;
+        }
+
+    };
+}
 
 namespace detail {
     /**
@@ -70,7 +126,7 @@ auto entropy(Iterator first, Iterator last, UnaryOperator op) {
  */
 template<typename Container>
 auto entropy(Container&& cont) {
-    return entropy(cont.begin(), cont.end());
+    return entropy(std::begin(cont), std::end(cont));
 }
 
 
@@ -85,70 +141,6 @@ auto entropy(Container&& cont) {
 
 namespace detail {
 
-    struct min_max_atom_tag {};
-
-    struct min_max_atom_arithmetic_tag : min_max_atom_tag {};
-
-    struct min_max_atom_skip_tag : min_max_atom_tag {};
-
-    template<typename T>
-    constexpr bool should_skip_atom_v = std::is_arithmetic<std::decay_t<T>>::value;
-
-    template<typename T>
-    using select_atom_tag_t = std::conditional_t<
-        should_skip_atom_v<T>,
-        min_max_atom_arithmetic_tag,
-        min_max_atom_skip_tag
-    >;
-
-    template<typename T>
-    void find_min_max_atom(const T& value, T& min, T& max) {
-        find_min_max_atom(value, min, max, select_atom_tag_t<T>{});
-    }
-
-    template<typename T>
-    void find_min_max_atom(const T& value, T& min, T& max, min_max_atom_arithmetic_tag) {
-        if(value > max) {
-            max = value;
-        }
-        if(value < min) {
-            min = value;
-        }
-    }
-
-    template<typename T>
-    void find_min_max_atom(const T& value, T& min, T& max, min_max_atom_skip_tag) {}
-
-    template<typename T>
-    void find_min_max(const T& value, T& min, T& max) {
-        find_min_max_atom(value, min, max);
-    }
-
-    template<typename ... T, size_t ... Indexes>
-    void find_min_max_tuple(const std::tuple<T...>& value, std::tuple<T...>& min, std::tuple<T...>& max, std::index_sequence<Indexes...>) {
-        (find_min_max_atom(std::get<Indexes>(value), std::get<Indexes>(min), std::get<Indexes>(max)), ...);
-    }
-
-    template<typename T, typename ... Rest>
-    void find_min_max_vector(const std::vector<T, Rest...>& value, std::vector<T, Rest...>& min, std::vector<T, Rest...>& max) {
-        for(    auto it = value.begin(), end = value.end(),
-                min_it = min.begin(), min_end = min.end(),
-                max_it = max.begin(), max_end = max.end();
-                it != end && min_it != min_end && max_it != max_end;
-                ++it,
-                ++min_it,
-                ++max_it
-                ) {
-            find_min_max_atom(*it, *min_it, *max_it);
-        }
-    }
-
-
-    template<size_t skip_last, typename ... T>
-    void find_min_max(const std::tuple<T...>& value, std::tuple<T...>& min, std::tuple<T...>& max) {
-        find_min_max_tuple(value, min, max, std::make_index_sequence<sizeof...(T) - skip_last>{});
-    }
-
     template<typename T>
     auto apply_normalization_atom(T x, const T& min, const T& max) {
         auto range = max-min;
@@ -162,18 +154,18 @@ namespace detail {
     }
 
     template<typename T>
-    auto apply_normalization(T& x, const T& min, const T& max) {
-        return apply_normalization(x, min, max, select_atom_tag_t<T>{});
+    auto apply_normalization(T& x, const T& min, const T& max, arithmetic_atom_tag) {
+        return apply_normalization_atom(x, min, max);
     }
 
     template<typename T>
-    auto apply_normalization(T& x, const T& min, const T& max, min_max_atom_arithmetic_tag) {
-        return apply_normalization_atom(x, min, max);
-    }
-    
-    template<typename T>
-    auto apply_normalization(T& x, const T& min, const T& max, min_max_atom_skip_tag) {
+    auto apply_normalization(T& x, const T& min, const T& max, skip_atom_tag) {
         return x;
+    }
+
+    template<typename T>
+    auto apply_normalization(T& x, const T& min, const T& max) {
+        return apply_normalization(x, min, max, select_atom_tag_t<T>{});
     }
 
     template<size_t SkipLast, typename T, typename ... Rest>
@@ -244,49 +236,6 @@ void normalize(Container& cont) {
     normalize<skip_last>(std::begin(cont), std::end(cont));
 }
 
-namespace detail {
-
-    template<typename ... T, size_t ... Indexes>
-    auto distance_euclidean_tuple(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2, std::index_sequence<Indexes...>) {
-        return (0.0f + ... + ((std::get<Indexes>(tuple1) - std::get<Indexes>(tuple2)) * (std::get<Indexes>(tuple1) - std::get<Indexes>(tuple2))));
-    }
-}
-
-/**
- * Euclidean distance function that calculates the distance of values in a two
- * tuples. The behavior for vectors of unequal length is undefined.
- *
- * @param cont1 the container of the first values
- * @param cont2 the container of the second values
- * @param skip_last Skip the last number of elements in the tuple
- * @return the distance
- */
-template<size_t skip_last = 0, typename ...T>
-auto distance_euclidean(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2){
-    return detail::distance_euclidean_tuple(tuple1, tuple2, std::make_index_sequence<sizeof...(T) - skip_last>{});
-}
-
-/**
- * Euclidean distance function that calculates the distance of values in a two
- * vectors. The behavior for vectors of unequal length is undefined.
- *
- * @param cont1 the container of the first values
- * @param cont2 the container of the second values
- * @return the distance
- */
-template<size_t skip_last = 0, typename Container>
-auto distance_euclidean(const Container& cont1, const Container& cont2){
-    typename Container::value_type sum = 0;
-    for(auto
-            it_1 = std::begin(cont1),
-            it_1_end = std::end(cont1),
-            it_2 = std::begin(cont2);
-            it_1  != it_1_end;
-            ++it_1, ++it_2) {
-        sum += (*it_1 - *it_2) * (*it_1 - *it_2);
-    }
-    return sqrt(sum);
-}
 /**
  * Split container into two parts
  * @param cont
@@ -313,10 +262,11 @@ std::pair<Container, Container> split(const Container& cont, float split) {
     std::uniform_int_distribution<size_t> dist(0, rows-1);
 
     size_t next_idx;
-    for(size_t i = 0, len = split_first_size; i < len; ++i) {        
+    for(size_t i = 0, len = split_first_size; i < len; ++i) {
         do {
             next_idx = dist(mt);
         } while(used.find(next_idx) != used.end());
+        used.insert(next_idx);
         res.first.emplace_back(cont[next_idx]);
     }
 
@@ -324,51 +274,11 @@ std::pair<Container, Container> split(const Container& cont, float split) {
         do {
             next_idx = dist(mt);
         } while(used.find(next_idx) != used.end());
+        used.insert(next_idx);
         res.second.emplace_back(cont[next_idx]);
     }
 
     return res;
-}
-
-/**
- * By convention, the label is always the last value in a tuple
- * @param tuple
- * @return a reference to the label
- */
-template<typename ...T>
-auto& get_label(std::tuple<T...>& tuple) {
-    return std::get<sizeof...(T)-1>(tuple);
-}
-
-/**
- * By convention, the label is always the last value in a tuple
- * @param tuple
- * @return a reference to the label
- */
-template<typename ...T>
-const auto& get_label(const std::tuple<T...>& tuple) {
-    return std::get<sizeof...(T)-1>(tuple);
-}
-
-/**
- * By convention, the label is always the last value in a Container
- * @param cont the input container
- * @return a reference to the label
- */
-template<typename Container>
-auto& get_label(Container& cont) {
-    return *(cont.begin() + cont.size()-1);
-}
-
-
-/**
- * By convention, the label is always the last value in a Container
- * @param cont the input container
- * @return a reference to the label
- */
-template<typename Container>
-const auto& get_label(const Container& cont) {
-    return *(cont.begin() + cont.size()-1);
 }
 
 /**
@@ -407,7 +317,7 @@ auto predict_by_knn(const Container& sample_model, const Element& test_element, 
             if(used_rows.find(sample_row_idx) == used_rows.end()) {
 
                 auto temp_sample_dist = distance_euclidean<SkipLastN>(test_element, sample_model[sample_row_idx]);
-                
+
                 if(closest_sample_row_dist > temp_sample_dist) {
                     closest_sample_row_dist = temp_sample_dist;
                     closest_sample_row_idx = sample_row_idx;
@@ -444,13 +354,13 @@ auto predict_by_knn(const Container& sample_model, const Element& test_element, 
 }
 
 /**
- * Tests various knn values by splitting a input container into two parts and sampling the statistical success rate of it
- * 
+ * Sample various knn values by splitting a input container into two parts and sampling the statistical success rate of it
+ *
  * @param test_runs
  * @return
  */
 template<size_t SkipLastN = 1, typename Container>
-std::map<size_t, float> test_knn_values(Container& cont, size_t test_runs = 1, float split_dataset = 0.75, size_t max_k_test = std::numeric_limits<size_t>::max()) {
+std::map<size_t, float> sample_knn_values(Container& cont, size_t test_runs = 1, float split_dataset = 0.75, size_t max_k_test = std::numeric_limits<size_t>::max()) {
 
 
     std::map<size_t, std::vector<float>> test_model_predictions;
@@ -494,6 +404,446 @@ std::map<size_t, float> test_knn_values(Container& cont, size_t test_runs = 1, f
     return ret;
 }
 
+/**
+ * Maximizes the K-NN of sample test runs over the provided data set
+ */
+template<size_t SkipLastN = 1, typename Container>
+auto maximize_knn (Container& cont, size_t test_runs = 1, float split_dataset = 0.75, size_t max_k_test = std::numeric_limits<size_t>::max()) {
+    auto opt = sample_knn_values<SkipLastN>(cont, test_runs, split_dataset, max_k_test);
+    auto res_it = std::max_element(opt.begin(), opt.end(), [](const auto& left, const auto& right) {
+        return left.first > right.first;
+    });
+    return *res_it;
+}
+
+/**
+ * Selects N number of samples from the container
+ *
+ * @param cont the container to select samples from
+ * @param n the number of samples to select
+ * @param not_in (Optional) container container possibly containing
+ * samples from cont which should be excluded from selection
+ * @return a container of tuples containing the selected element and their indexes in the FromContainer
+ */
+template<typename FromContainer, typename NotInContainer, typename Random = std::mt19937>
+auto select_n_random(FromContainer& cont, size_t n, const NotInContainer& not_index, Random&& rand = Random(std::random_device{}())) {
+
+    std::vector<std::tuple<typename FromContainer::value_type, typename FromContainer::size_type>> selected;
+    selected.reserve(n);
+
+    const auto rows = cont.size();
+
+    std::set<size_t> used;
+
+    //Random selection
+    std::uniform_int_distribution<size_t> dist(0, rows-1);
+
+    size_t next_idx;
+    for(size_t i = 0; i < n; ++i) {
+        do {
+            next_idx = dist(rand);
+        } while(
+            used.find(next_idx) != used.end() &&
+            not_index.find(next_idx) != not_index.end()
+        );
+        used.insert(next_idx);
+        selected.emplace_back(std::forward_as_tuple(cont[next_idx], next_idx));
+    }
+
+    return selected;
+}
+
+
+/**
+ * Selects N number of samples from the container
+ *
+ * @param cont the container to select samples from
+ * @param n the number of samples to select
+ * @return a container of tuples containing the selected element and their indexes in the FromContainer
+ */
+template<typename FromContainer, typename Random = std::mt19937>
+auto select_n_random(FromContainer& cont, size_t n, Random&& rand = Random(std::random_device{}())) {
+    std::unordered_set<typename FromContainer::size_type> not_index;
+    return select_n_random(cont, n, not_index, std::forward<Random>(rand));
+}
+
+/**
+ * Selects N number of samples from the container into another container
+ *
+ * The algorithm will verify that an element does not already exist in the into container
+ *
+ * @param cont the container to select samples from
+ * @param n the number of samples to select
+ * @return a tuple containing the element selected and the index of the element in the FromContainer
+ */
+template<typename FromContainer, typename NotInContainer, typename Random = std::mt19937>
+auto select_1_random(FromContainer& cont, const NotInContainer& not_index, Random&& rand = Random(std::random_device{}())) {
+
+    const auto rows = cont.size();
+    //Random selection
+    std::uniform_int_distribution<size_t> dist(0, rows-1);
+
+    size_t next_idx;
+    do {
+        next_idx = dist(rand);
+    } while(not_index.find(next_idx) != not_index.end());
+
+    return std::forward_as_tuple(cont[next_idx], next_idx);
+}
+
+/**
+ * Selects N number of samples from the container into another container
+ *
+ * The algorithm will verify that an element does not already exist in the into container
+ *
+ * @param cont the container to select samples from
+ * @param n the number of samples to select
+ * @return a tuple containing the element selected and the index of the element
+ */
+template<typename FromContainer, typename Random = std::mt19937>
+auto& select_1_random(FromContainer& cont, Random&& rand = Random(std::random_device{})) {
+    std::unordered_set<typename FromContainer::size_type> not_index;
+    return select_1_random(cont, not_index, std::forward<Random>(rand));
+}
+
+
+/**
+ * Selects N number of samples from the container into another container
+ *
+ * The algorithm will verify that an element does not already exist in the into container
+ *
+ * @param cont the container to select samples from
+ * @param n the number of samples to select
+ * @return the resulting selection container
+ */
+template<typename FromContainer, typename IntoContainer, typename Random = std::mt19937>
+void select_n_random_into(FromContainer& cont, size_t n, IntoContainer& into, Random&& rand = Random(std::random_device{}())) {
+    into.reserve(into.size() + n);
+
+    auto rows = cont.size();
+
+    //Fast lookup of used values
+    std::set<size_t> used;
+
+    //Random selection
+    std::uniform_int_distribution<size_t> dist(0, rows-1);
+
+    size_t next_idx;
+    for(size_t i = 0; i < n; ++i) {
+        do {
+            if(used)
+            next_idx = dist(rand);
+        } while(
+            used.find(next_idx) != used.end() &&
+            into.find(cont[next_idx]) != into.end()
+        );
+        used.insert(next_idx);
+        into.emplace_back(cont[next_idx]);
+    }
+}
+
+/**
+ *
+ * @param cont the container to calculate the centroid for
+ * @return
+ */
+template<size_t SkipLastN = 0, typename Container>
+auto centroid(Container& cont) {
+    using value_type = typename Container::value_type;
+    value_type center;
+    auto size = std::distance(std::begin(cont), std::end(cont));
+    using namespace detail;
+    for(auto& val : cont) {
+        element_add<SkipLastN>(center, val);
+    }
+    element_div<SkipLastN>(center, size);
+    return center;
+}
+
+/**
+ * Calculates the average distance (euclidean) between all the points in the cointainer
+ * and the element provided
+ *
+ * If the element provided exists in cont, its weight will be considered
+ * @param cont
+ * @param element
+ * @return the average
+ */
+template<size_t SkipLastN = 0, typename Container, typename Result = float>
+Result average_distance_euclidean(const Container& cont, const typename Container::value_type& element) {
+    auto it = std::begin(cont),
+         end = std::end(cont);
+    if(it != end) {
+        Result sum = 0;
+        for(; it != end; ++it) {
+            sum += distance_euclidean<SkipLastN>(*it, element);
+        }
+        return static_cast<Result>(sum) / static_cast<Result>(cont.size());
+    } else {
+        return 0;
+    }
+}
+
+
+/**
+ * Constructs k clusters from selection into a tuple of cluster map a d cluster centroids from the container cont
+ *
+ * @param cont
+ * @param selection The initially selected element that are the seeds to clustering
+ * @param k
+ * @param cluster_map
+ */
+template<size_t SkipLastN = 0, typename FromContainer, typename SelectionContainer, typename Random = std::mt19937>
+auto create_k_means_clusters_from_selection(FromContainer& cont, SelectionContainer&& selection, Random&& rand = Random(std::random_device{}())) {
+
+    const auto samples_count = cont.size();
+    const auto k_clusters = selection.size();
+    using value_type = typename FromContainer::value_type;
+    using vec_type = std::vector<value_type>;
+
+    /**
+     * Initialize centroids, and used_samples containers
+     */
+    std::unordered_map<size_t, vec_type> cluster_map(k_clusters);
+    std::unordered_map<size_t, value_type> cluster_centroid_map(k_clusters);
+    std::unordered_set<size_t> used_samples(samples_count);
+
+    if(selection.empty()) {
+        throw std::runtime_error("Invalid cluster initialization");
+    }
+
+    /**
+     * Select random n initial seeds and add them into the k_clusters map
+     */
+    size_t k_cluster_idx = 0;
+    for(auto [origin, origin_idx] : selection) {
+       vec_type vec;
+       /**
+        * Estimate average cluster size as samples * 0.75 / k
+        */
+       vec.reserve(samples_count * 0.75f / k_clusters);
+       /**
+        * Move the initial element (the seed) into it own cluster
+        */
+       vec.emplace_back(origin);
+       /**
+        * Initialize cluster centroid
+        */
+       cluster_centroid_map[k_cluster_idx] = centroid<SkipLastN>(vec);
+       /**
+        * Move temp vec to cluster_map after initialization
+        */
+       cluster_map.emplace(k_cluster_idx++, std::move(vec));
+       used_samples.emplace(origin_idx);
+    }
+
+    /**
+     * Consider samples_count - k elements and for every element left, find it's closest group
+     */
+    for(size_t remaining_samples_idx = 0; remaining_samples_idx < samples_count-k_clusters; ++remaining_samples_idx) {
+
+       /**
+        * Select 1 random sample from cont that is not in used_samples
+        */
+       auto [sample, sample_idx] = select_1_random(cont, used_samples, rand);
+       size_t closest_cluster_idx = 0;
+       auto closest_cluster_dist = distance_euclidean<SkipLastN>(cluster_centroid_map[closest_cluster_idx], sample);
+       for(size_t k_check_idx = 1; k_check_idx < k_clusters; ++k_check_idx) {
+           auto& cluster_centroid = cluster_centroid_map[k_check_idx];
+
+           /**
+            * Calculate the euclidean distance between the cluster and the sample
+            */
+           auto temp_dist = distance_euclidean<SkipLastN>(cluster_centroid, sample);
+           if(temp_dist < closest_cluster_dist) {
+               closest_cluster_dist = temp_dist;
+               closest_cluster_idx = k_check_idx;
+           }
+       }
+       /**
+        * Add element to the closest cluster
+        */
+       used_samples.emplace(sample_idx);
+       auto& cluster_container = cluster_map[closest_cluster_idx];
+       cluster_container.emplace_back(sample);
+       /**
+        * Recalculate cluster centroid
+        */
+       cluster_centroid_map[closest_cluster_idx] = centroid<SkipLastN>(cluster_container);
+    }
+
+    return std::make_tuple(std::move(cluster_map), std::move(cluster_centroid_map));
+}
+
+/**
+ * Constructs k clusters into cluster_map from the container cont
+ * @param cont
+ * @param k
+ * @param cluster_map
+ */
+template<size_t SkipLastN = 0, typename FromContainer, typename Random = std::mt19937>
+auto create_k_means_clusters(FromContainer& cont, const size_t& k_clusters, Random&& rand = Random(std::random_device{}())) {
+    return create_k_means_clusters_from_selection<SkipLastN>(cont, select_n_random(cont, k_clusters, rand), rand);
+}
+
+namespace detail {
+    /**
+     * Optimize given an algorithm over n runs and find the optimal n argument
+     * @tparam Algorithm a functor accepting
+     * @tparam Comparator the comparison operator for
+     */
+    template<typename Algorithm, typename Comparator>
+    struct optimizer_helper {
+
+        using algorithm_type = Algorithm;
+        using comparator_type = Comparator;
+
+        optimizer_helper(algorithm_type && algorithm, comparator_type&& comp, size_t from_n, size_t to_n)
+            : algorithm(std::forward<algorithm_type>(algorithm)),
+              comparator(std::forward<comparator_type>(comp)),
+              from_n(from_n),
+              to_n(to_n) {}
+
+        /**
+         * Apply (optional) arguments to the algorithm
+         * @param arguments
+         * @return the optimized result over n
+         */
+        auto operator()() {
+            size_t min_idx = from_n;
+            auto min_val = algorithm(from_n);
+            for(size_t i = from_n+1, len = to_n; i < len; ++i) {
+                auto temp_val = algorithm(i);
+                if(comparator(temp_val, min_val)) {
+                    min_idx = i;
+                    min_val = temp_val;
+                }
+            }
+            return std::make_tuple(std::move(min_val), min_idx);
+        }
+
+        algorithm_type algorithm;
+        comparator_type comparator;
+        size_t from_n, to_n;
+    };
+}
+
+template<size_t SkipFirstN, typename Container, typename UnaryOp>
+auto average(const Container& cont, UnaryOp&& op) {
+    using res_type = decltype(op(*cont.begin()));
+
+    res_type sum = 0;
+    for(auto& v : cont) {
+        sum += op(v);
+    }
+    return sum / cont.size();
+}
+
+/**
+ * Optimize the input algorithm based on the comparator (comp) given, over the range [from_n, to_n]
+ *
+ * @param algorithm the algorithm to optimize
+ * @param comp the comparison of the result
+ * @param from_n the starting range of n
+ * @param to_n the ending range of n (exclusive)
+ * @return the most optimal value
+ */
+template<typename Algorithm, typename Comparator>
+auto optimizer(Algorithm&& algorithm, Comparator&& comp, size_t from_n, size_t to_n) {
+    return detail::optimizer_helper<Algorithm, Comparator>(
+        std::forward<Algorithm>(algorithm),
+        std::forward<Comparator>(comp),
+        from_n,
+        to_n
+    )();
+}
+
+/**
+ * Tests various kmeans values by splitting a input container into two parts and sampling the statistical success rate of it
+ *
+ * @param test_runs
+ * @param max_k_test the maximum number of clusters to test (defaults to the number of data points in the container provided
+ * @return the result map
+ */
+template<size_t SkipLastN = 0, typename Container, typename Random = std::mt19937>
+auto sample_kmeans(Container& cont, size_t test_runs = 1, size_t max_k_test = std::numeric_limits<size_t>::max(), Random&& rand = Random(std::random_device{}())) {
+
+    using value_type = typename Container::value_type;
+    const auto samples_count = cont.size();
+    const auto k_clusters_max = std::min(max_k_test, samples_count+1);
+
+    /**
+     * distance from each element to its cluster centroid
+     * i.e. what is being minimized (the average)
+     */
+    //std::map<size_t, std::vector<float>> test_results;
+
+    /**
+     * tuple with key that is the elements, and value of the average
+     */
+    using selection_info = std::tuple<std::vector<value_type>, float>;
+    /**
+     * list of tuples {k = elements vector, v = average}
+     */
+    using selection_vector = std::vector<selection_info>;
+
+    /**
+     * map of {k = cluster count, v = vector of selection_info}
+     */
+    std::unordered_map<size_t, selection_vector> selection_proximity(k_clusters_max);
+
+    /**
+     * For every k clusters, starting with k = 1 clusters, and increment and measure
+     */
+    for(size_t k_clusters = 1; k_clusters < k_clusters_max; ++k_clusters) {
+
+        std::cout << "Gathering kmeans samples for K=" << k_clusters << " (samples = " << test_runs << ")\n";
+        for(size_t i = 0; i < test_runs; ++i) {
+
+            auto selection = select_n_random(cont, k_clusters, rand);
+            std::vector<value_type> selection_values;
+            selection_values.reserve(k_clusters);
+            for(auto [k, v] : selection) {
+                UNUSED(v);
+                selection_values.emplace_back(k);
+            }
+
+            auto [clusters, centroids] = create_k_means_clusters_from_selection<SkipLastN>(cont, selection, rand);
+
+            auto avg = average<SkipLastN>(clusters, [&](const auto& pair) {
+                auto [idx, vec] = pair;
+                return average_distance_euclidean<SkipLastN>(vec, centroids[idx]);
+            });
+//            float sum = 0;
+//            for(auto [idx, vec] : clusters) {
+//                sum +=
+//            }
+//            float avg = sum / k_clusters;
+            //test_results[k_clusters].emplace_back(avg);
+
+            selection_proximity[k_clusters].emplace_back(selection_values, avg);
+        }
+    }
+
+    return selection_proximity;
+}
+
+
+/**
+ * Tests various kmeans values by splitting a input container into two parts and sampling the statistical success rate of it
+ *
+ * @param test_runs
+ * @param max_k_test the maximum number of clusters to test (defaults to the number of data points in the container provided
+ * @return the result map
+ */
+template<size_t SkipLastN = 0, typename Container, typename Random = std::mt19937>
+auto minimize_kmeans(Container& cont, size_t test_runs = 1, size_t max_k_test = std::numeric_limits<size_t>::max()) {
+    auto res = sample_kmeans(cont, test_runs,  max_k_test);
+    auto res_it = std::max_element(res.begin(), res.end(), [](const auto& left, const auto& right) {
+        return std::get<1>(left) > std::get<1>(right);
+    });
+    return *res_it;
+}
 
 namespace detail {
 
@@ -538,6 +888,5 @@ auto csv(const std::string& file, bool first_line_header = true) {
     }
 }
 
-
-#endif /* NEWFILE_HPP */
+#endif /* ALGORITHM_HPP */
 

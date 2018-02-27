@@ -7,7 +7,7 @@
 
 /**
  * Test another model against this model data
- * 
+ *
  * @param other_model the other model to test points from
  * @param k the k value to test
  * @return the result map
@@ -32,36 +32,52 @@ std::map<size_t, bool> run_tests(const Container& samples, const Container& test
 
 int main(int argc, char** argv) {
 
-    try {
-        
-        auto test = csv<float, float, std::string>("datasets/Lab2known.txt", true);
+    auto data = csv<float, float, std::string>("datasets/Lab2known.txt");
 
-        std::cout << "Size: " << test.size() << '\n';
+    normalize(data);
+//
+    const size_t nr_of_samples = 1000;
 
-        normalize<1>(test);
+    const size_t max_k = data.size();
 
-        auto opt = test_knn_values<1>(test, 10);
+    /**
+     * Gather sample data for kmeans from k=1 to k=10
+     */
+    auto res = sample_kmeans<1>(data, nr_of_samples);
 
-
-        auto res_it = std::max_element(opt.begin(), opt.end(), [](const auto& left, const auto& right) {
-            return left.first > right.first;
-        });
-
-        size_t best_k = (*res_it).first;
-        float best_k_accuracy = (*res_it).second;
-
-        std::cout << "The best K value is: " << best_k << " with an estimated accuracy of " << best_k_accuracy << "\n";
-
-        auto real = csv<float, float, std::string>("datasets/Lab2unknown.txt", true);
-        //    
-        normalize(real);
-
-        run_tests(test, real, best_k);
-
-    }catch(std::exception* ex) {
-        std::cout << "Failed running " << __FILE__ << ", message:\n\t" << ex->what() << '\n';
-        throw ex;
+    std::cout << "Per K, the average distance for all elements to their assigned clusters:\n";
+    for(auto [k, info ] : res) {
+        std::cout << "K = " << k << " { ";
+        for(auto [k, v] : info) {
+            UNUSED(k);
+            std::cout << v << ", ";
+        }
+        std::cout << " } \n";
     }
+
+    std::cout << "\n\nPer K given below, the best initial selection of nodes based on samples above are:\n";
+    for(size_t k = 1; k < max_k; ++k) {
+
+        auto [dist, best_n] = optimizer(
+            [&res, &k](const auto& n) {
+                //lookup k = 1
+                //get the second value of the k=1, n-ths result
+                return std::get<1>(res[k][n]);
+            },
+            std::less<void>(),
+            0, nr_of_samples
+        );
+
+        std::cout << "\n\nFor K = " << k << ", avg proximity to centroid of nodes in each cluster = " << dist << "\n\t{";
+        for(auto [attr1, attr2, attr3] : std::get<0>(res[k][best_n])) {
+            UNUSED(attr3);
+            std::cout << '(' << attr1 << ',' << attr2 << "), ";
+        }
+
+        std::cout << "}\n";
+    }
+
+    std::cout << "\n\n";
 
     return 0;
 }
