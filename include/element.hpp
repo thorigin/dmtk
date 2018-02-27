@@ -44,7 +44,7 @@ void find_min_max_atom(const T& value, T& min, T& max) {
 }
 
 template<typename T>
-void find_min_max_atom(const T& value, T& min, T& max, skip_atom_tag) {}
+void find_min_max_atom(const T&, T&, T&, skip_atom_tag) {}
 
 template<typename T>
 void find_min_max_atom(const T& value, T& min, T& max, arithmetic_atom_tag) {

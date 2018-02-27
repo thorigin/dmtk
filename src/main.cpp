@@ -3,7 +3,7 @@
  * Aurora Hernandez
  */
 
-int main(int argc, char** argv) {
+int main(int, char**) {
     //No main program, empty
     return 0;
 }

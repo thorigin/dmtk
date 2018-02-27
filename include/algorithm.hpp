@@ -159,7 +159,7 @@ namespace detail {
     }
 
     template<typename T>
-    auto apply_normalization(T& x, const T& min, const T& max, skip_atom_tag) {
+    auto apply_normalization(T& x, const T&, const T&, skip_atom_tag) {
         return x;
     }
 

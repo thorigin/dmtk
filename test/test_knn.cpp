@@ -30,7 +30,7 @@ std::map<size_t, bool> run_tests(const Container& samples, const Container& test
     return res;
 }
 
-int main(int argc, char** argv) {
+int main(int, char**) {
 
     try {
 
