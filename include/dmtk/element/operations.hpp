@@ -100,12 +100,12 @@ namespace detail {
     }
 }
 
-template<size_t SkipLastN = 0, typename ...T>
+template<typename ...T>
 void element_add(std::tuple<T...>& value, const std::tuple<T...>& add) {
-    detail::element_add_helper(value, add, std::make_index_sequence<sizeof...(T)-SkipLastN>{});
+    detail::element_add_helper(value, add, std::make_index_sequence<sizeof...(T)>{});
 }
 
-template<size_t SkipLastN = 0, typename Container, typename std::enable_if_t<is_container_v<Container>>>
+template<typename Container, typename std::enable_if_t<is_container_v<Container>>>
 void element_add(const Container& value, Container& add) {
 
     //ensure size of sum container
@@ -114,7 +114,7 @@ void element_add(const Container& value, Container& add) {
     }
 
     for(auto    value_it = std::begin(add),
-                end = std::end(add)-SkipLastN,
+                end = std::end(add),
                 add_it = add.begin();
                 value_it != end;
                 ++value_it, ++add_it) {
@@ -123,15 +123,15 @@ void element_add(const Container& value, Container& add) {
 }
 
 
-template<size_t SkipLastN = 0, typename ...T>
+template<typename ...T>
 void element_div(std::tuple<T...>& value, const std::tuple<T...>& divider) {
-    detail::element_add_helper(value, divider, std::make_index_sequence<sizeof...(T)-SkipLastN>{});
+    detail::element_add_helper(value, divider, std::index_sequence_for<T...>{});
 }
 
-template<size_t SkipLastN = 0, typename Container>
+template<typename Container>
 void element_div(Container& value, const Container& divider) {
     for(auto    value_it = std::begin(value),
-                end = std::end(value)-SkipLastN,
+                end = std::end(value),
                 divider_it = divider.begin();
                 value_it != end;
                 ++value_it, ++divider_it) {
@@ -146,15 +146,15 @@ namespace detail {
     }
 }
 
-template<size_t SkipLastN = 0, typename ...T, typename Divider>
+template<typename ...T, typename Divider>
 void element_div(std::tuple<T...>& value, const Divider& divider) {
-    detail::element_div_helper(value, divider, std::make_index_sequence<sizeof...(T)-SkipLastN>{});
+    detail::element_div_helper(value, divider, std::index_sequence_for<T...>{});
 }
 
-template<size_t SkipLastN = 0, typename Container, typename Divider>
+template<typename Container, typename Divider>
 void element_div(Container& value, const Divider& divider) {
     for(auto    value_it = std::begin(value),
-                end = std::end(value)-SkipLastN;
+                end = std::end(value);
                 value_it != end;
                 ++value_it) {
         (*value_it) /= divider;

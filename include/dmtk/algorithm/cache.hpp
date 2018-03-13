@@ -8,4 +8,4 @@
  *    Aurora Hernandez <aurora@aurorahernandez.com>, 2018
  */
 
-#include "function/euclidean.hpp"
+#include "cache/pairwise.hpp"

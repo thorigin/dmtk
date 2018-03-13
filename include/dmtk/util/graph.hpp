@@ -8,18 +8,7 @@
  *    Aurora Hernandez <aurora@aurorahernandez.com>, 2018
  */
 
-/**
- * @file Contains preprocessor utilities
- */
+#include "graph/node.hpp"
+#include "graph/visitor.hpp"
 
-#ifndef DMTK_UTIL_PREPROCESSOR_HPP
-#define DMTK_UTIL_PREPROCESSOR_HPP
-
-/**
- * @brief Mark variable as unused explicitly and remove compiler warning
- *        if intentional.
- */
-#define DMTK_UNUSED(x) (void)x;
-
-#endif /* DMTK_UTIL_PREPROCESSOR_HPP */
 

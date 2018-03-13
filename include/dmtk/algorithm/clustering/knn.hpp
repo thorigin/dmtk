@@ -28,7 +28,7 @@ DMTK_NAMESPACE_BEGIN
  * @param k
  * @return the predicated label
  */
-template<size_t SkipLastN = 0, typename Container>
+template<typename Container>
 auto predict_by_knn(
     const Container& sample_model,
     const typename Container::value_type& test_element,
@@ -51,7 +51,7 @@ auto predict_by_knn(
         /**
          * The closest sample row index and distance that is unused
          */
-        auto closest_sample_row_dist = distance_euclidean<SkipLastN>(test_element, sample_model[0]);
+        auto closest_sample_row_dist = euclidean_distance(test_element, sample_model[0]);
         size_t closest_sample_row_idx = 0;
 
         for (size_t sample_row_idx = 1; sample_row_idx < sample_size; ++sample_row_idx) {
@@ -59,7 +59,7 @@ auto predict_by_knn(
             //Check if row has not already been sampled
             if(used_rows.find(sample_row_idx) == used_rows.end()) {
 
-                auto temp_sample_dist = distance_euclidean<SkipLastN>(test_element, sample_model[sample_row_idx]);
+                auto temp_sample_dist = euclidean_distance(test_element, sample_model[sample_row_idx]);
 
                 if(closest_sample_row_dist > temp_sample_dist) {
                     closest_sample_row_dist = temp_sample_dist;
@@ -123,7 +123,7 @@ std::unordered_map<size_t, float> sample_knn_values(Container& cont, size_t test
             for(size_t test_idx = 0, test_count = test_data_size; test_idx < test_count; ++test_idx) {
 
                 //Attempt to predict test_row with k nearest neighbours
-                const auto& predicated_label = predict_by_knn<SkipLastN>(sample_data, test_data[test_idx], k);
+                const auto& predicated_label = predict_by_knn(sample_data, test_data[test_idx], k);
                 const auto& expected_label = get_label(test_data[test_idx]);
 
                 if(predicated_label == expected_label) {
@@ -153,7 +153,7 @@ std::unordered_map<size_t, float> sample_knn_values(Container& cont, size_t test
  */
 template<size_t SkipLastN = 1, typename Container>
 auto maximize_knn (Container& cont, size_t test_runs = 1, float split_dataset = 0.75, size_t max_k_test = std::numeric_limits<size_t>::max()) {
-    auto opt = sample_knn_values<SkipLastN>(cont, test_runs, split_dataset, max_k_test);
+    auto opt = sample_knn_values(cont, test_runs, split_dataset, max_k_test);
     auto res_it = std::max_element(opt.begin(), opt.end(), [](const auto& left, const auto& right) {
         return left.first > right.first;
     });

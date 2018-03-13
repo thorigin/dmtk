@@ -24,8 +24,8 @@ DMTK_NAMESPACE_BEGIN
 
 namespace detail {
 
-    template<typename ... T, size_t ... Indexes, typename Result = float>
-    Result distance_euclidean_tuple(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2, std::index_sequence<Indexes...>) {
+    template<typename ... T, size_t ... Indexes>
+    auto euclidean_distance_helper(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2, std::index_sequence<Indexes...>) {
         return (0.0f + ... + ((std::get<Indexes>(tuple1) - std::get<Indexes>(tuple2)) * (std::get<Indexes>(tuple1) - std::get<Indexes>(tuple2))));
     }
 }
@@ -36,12 +36,13 @@ namespace detail {
  *
  * @param cont1 the container of the first values
  * @param cont2 the container of the second values
- * @param SkipLastN Skip the last number of elements in the tuple
  * @return the distance
  */
-template<size_t SkipLastN = 0, typename ...T>
-auto distance_euclidean(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2){
-    return std::sqrt(detail::distance_euclidean_tuple(tuple1, tuple2, std::make_index_sequence<sizeof...(T) - SkipLastN>{}));
+template<typename ...T>
+auto euclidean_distance(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2){
+    return std::sqrt(
+        detail::euclidean_distance_helper(tuple1, tuple2, std::index_sequence_for<T...>{})
+    );
 }
 
 /**
@@ -50,12 +51,11 @@ auto distance_euclidean(const std::tuple<T...>& tuple1, const std::tuple<T...>& 
  *
  * @param cont1 the container of the first values
  * @param cont2 the container of the second values
- * @param SkipLastN Skip the last number of elements in the tuple
  * @return the distance squared
  */
-template<size_t SkipLastN = 0, typename ...T>
-auto distance_euclidean_squared(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2){
-    return detail::distance_euclidean_tuple(tuple1, tuple2, std::make_index_sequence<sizeof...(T) - SkipLastN>{});
+template<typename ...T>
+auto euclidean_distance_squared(const std::tuple<T...>& tuple1, const std::tuple<T...>& tuple2){
+    return detail::euclidean_distance_helper(tuple1, tuple2, std::index_sequence_for<T...>{});
 }
 
 /**
@@ -66,8 +66,8 @@ auto distance_euclidean_squared(const std::tuple<T...>& tuple1, const std::tuple
  * @param cont2 the container of the second values
  * @return the distance
  */
-template<size_t SkipLastN = 0, typename Container>
-auto distance_euclidean(const Container& cont1, const Container& cont2){
+template<typename Container>
+auto euclidean_distance(const Container& cont1, const Container& cont2){
     typename Container::value_type sum = 0;
     for(auto
             it_1 = std::begin(cont1),
@@ -88,8 +88,8 @@ auto distance_euclidean(const Container& cont1, const Container& cont2){
  * @param cont2 the container of the second values
  * @return the distance squared
  */
-template<size_t SkipLastN = 0, typename Container>
-auto distance_euclidean_squared(const Container& cont1, const Container& cont2){
+template<typename Container>
+auto euclidean_distance_squared(const Container& cont1, const Container& cont2){
     typename Container::value_type sum = 0;
     for(auto
             it_1 = std::begin(cont1),

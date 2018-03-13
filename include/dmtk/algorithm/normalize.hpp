@@ -19,39 +19,34 @@ namespace detail {
     auto apply_normalization_atom(T x, const T& min, const T& max) {
         auto range = max-min;
         if(range != 0) {
-            return (x - min) / range;
+            x = (x - min) / range;
         } else if(max != 0) {
-            return x - min / max;
-        } else {
-            return x;
+            x =  x - min / max;
         }
     }
 
     template<typename T>
-    auto apply_normalization(T& x, const T& min, const T& max, arithmetic_atom_tag) {
-        return apply_normalization_atom(x, min, max);
+    void apply_normalization(T& x, const T& min, const T& max, arithmetic_atom_tag) {
+        apply_normalization_atom(x, min, max);
     }
 
     template<typename T>
-    auto apply_normalization(T& x, const T&, const T&, skip_atom_tag) {
-        return x;
-    }
+    void apply_normalization(T&, const T&, const T&, skip_atom_tag) {}
 
     template<typename T>
-    auto apply_normalization(T& x, const T& min, const T& max) {
-        return apply_normalization(x, min, max, select_atom_tag_t<T>{});
+    void apply_normalization(T& x, const T& min, const T& max) {
+        apply_normalization(x, min, max, select_atom_tag_t<T>{});
     }
 
     template<size_t SkipLast, typename T, typename ... Rest>
-    auto& apply_normalization(std::vector<T, Rest...>& value, const T& min, const T& max) {
+    void apply_normalization(std::vector<T, Rest...>& value, const T& min, const T& max) {
         for(auto it = value.begin(), end = value.end() - SkipLast; it != end; ++it) {
             *it = apply_normalization(*it, min, max);
         }
-        return value;
     }
 
     template<typename ...T, size_t ... Indexes>
-    auto& apply_normalization_helper(std::tuple<T...>& tuple, const std::tuple<T...>& min, const std::tuple<T...>& max, std::index_sequence<Indexes...>) {
+    void apply_normalization_helper(std::tuple<T...>& tuple, const std::tuple<T...>& min, const std::tuple<T...>& max, std::index_sequence<Indexes...>) {
         ((
             std::get<Indexes>(tuple) = apply_normalization(
                 std::get<Indexes>(tuple),
@@ -59,12 +54,11 @@ namespace detail {
                 std::get<Indexes>(max)
             )
         ), ...);
-        return tuple;
     }
 
     template<size_t SkipLastN, typename ...T>
-    auto& apply_normalization(std::tuple<T...>& tuple, const std::tuple<T...>& min, const std::tuple<T...>& max) {
-        return apply_normalization_helper(tuple, min, max, std::make_index_sequence<sizeof...(T)-SkipLastN>{});
+    void apply_normalization(std::tuple<T...>& tuple, const std::tuple<T...>& min, const std::tuple<T...>& max) {
+        apply_normalization_helper(tuple, min, max, std::make_index_sequence<sizeof...(T)-SkipLastN>{});
     }
 
 }
@@ -76,7 +70,7 @@ namespace detail {
  * @tparam skip_last optional, if value type is a vector or a tuple, it skips the number of elements from the right
  * @return
  */
-template<size_t SkipLastN = 0, typename Iterator>
+template<typename Iterator>
 void normalize(Iterator start, Iterator end) {
     if(start != end) {
         auto it = start;
@@ -84,13 +78,14 @@ void normalize(Iterator start, Iterator end) {
              max = (*it++);
         for(; it != end; ++it) {
             using namespace detail;
-            find_min_max<SkipLastN>(*it, min, max);
+            find_min_max(*it, min, max);
         }
 
-        std::transform(start, end, start, [&](auto& x) {
+        for(auto nit = start; nit != end; ++nit) {
+            auto&& x = *nit;
             using namespace detail;
-            return apply_normalization<SkipLastN>(x, min, max);
-        });
+            apply_normalization(x, min, max);
+        }
     }
 }
 
@@ -101,9 +96,9 @@ void normalize(Iterator start, Iterator end) {
  * @param cont
  * @return
  */
-template<size_t skip_last = 0, typename Container>
+template<typename Container>
 void normalize(Container& cont) {
-    normalize<skip_last>(std::begin(cont), std::end(cont));
+    normalize(std::begin(cont), std::end(cont));
 }
 
 DMTK_NAMESPACE_END

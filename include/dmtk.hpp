@@ -9,9 +9,8 @@
  */
 
 #include "dmtk/config.hpp"
-#include "dmtk/types.hpp"
 #include "dmtk/element.hpp"
 #include "dmtk/algorithm.hpp"
-#include "dmtk/io.hpp"
+#include "dmtk/data.hpp"
 #include "dmtk/util.hpp"
 

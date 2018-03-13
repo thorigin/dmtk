@@ -8,10 +8,5 @@
  *    Aurora Hernandez <aurora@aurorahernandez.com>, 2018
  */
 
-
-#ifndef DMTK_UTIL_FP_HPP
-#define DMTK_UTIL_FP_HPP
-
-
-#endif /* DMTK_UTIL_FP_HPP */
-
+#include "data/io.hpp"
+#include "data/view.hpp"

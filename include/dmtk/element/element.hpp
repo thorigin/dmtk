@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "dmtk/config.hpp"
-#include "dmtk/types.hpp"
+#include "dmtk/util/types.hpp"
 
 
 DMTK_NAMESPACE_BEGIN

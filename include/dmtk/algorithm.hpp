@@ -6,6 +6,9 @@
 #include "algorithm/normalize.hpp"
 #include "algorithm/partition.hpp"
 #include "algorithm/optimize.hpp"
+#include "algorithm/cache.hpp"
+#include "algorithm/hmm.hpp"
+#include "algorithm/for_each.hpp"
 
 #include "algorithm/entropy.hpp"
 #include "algorithm/clustering.hpp"

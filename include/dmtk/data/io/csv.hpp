@@ -8,8 +8,8 @@
  *    Aurora Hernandez <aurora@aurorahernandez.com>, 2018
  */
 
-#ifndef DMTK_IO_CSV_HPP
-#define DMTK_IO_CSV_HPP
+#ifndef DMTK_DATA_IO_CSV_HPP
+#define DMTK_DATA_IO_CSV_HPP
 
 #include "dmtk/element/element.hpp"
 #include <iostream>
@@ -31,6 +31,31 @@ namespace detail {
         return csv_read_tuple_indexes(tuple, is, std::index_sequence_for<T...>{});
     }
 
+    template<typename ...T, size_t FirstIndex, size_t... RestIndexes>
+    void tuple_to_csv_line_helper_2(std::ostream& os, std::tuple<T...>& tuple, std::index_sequence<FirstIndex, RestIndexes...>) {
+        os << std::get<FirstIndex>(tuple);
+        ((os << ", " << std::get<RestIndexes>(tuple)), ...);
+        os << '\n';
+    }
+
+    template<typename ...T>
+    void tuple_to_csv_line_helper(std::ostream& os, std::tuple<T...>& tuple) {
+        tuple_to_csv_line_helper_2(os, tuple, std::index_sequence_for<T...>{});
+    }
+
+}
+
+/**
+ * Write container out as CSV
+ * @param out
+ * @param cont
+ * @return
+ */
+template<typename Container>
+void csv_write(std::ostream& os, Container& cont) {
+    for(auto& v : cont) {
+        detail::tuple_to_csv_line_helper(os, v);
+    }
 }
 
 template<typename ... Types>
@@ -64,5 +89,5 @@ auto csv(const std::string& file, bool first_line_header = true) {
 
 DMTK_NAMESPACE_END
 
-#endif /* DMTK_IO_CSV_HPP */
+#endif /* DMTK_DATA_IO_CSV_HPP */
 

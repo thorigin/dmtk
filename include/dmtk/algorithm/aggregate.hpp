@@ -26,11 +26,13 @@ DMTK_NAMESPACE_BEGIN
  * @param op
  * @return {Element, index}
  */
-template<typename Container, typename Comparator>
-auto min(const Container& cont, Comparator&& comp = std::less<void>()) {
-    auto res = std::min_element(std::begin(cont), std::end(cont), std::forward<Comparator>(comp));
-    return std::forward_as_tuple(res, std::distance(std::begin(cont), res));
-}
+struct min {
+    template<typename Container, typename Comparator>
+    auto operator()(const Container& cont, Comparator&& comp = std::less<void>()) {
+        auto res = std::min_element(std::begin(cont), std::end(cont), std::forward<Comparator>(comp));
+        return std::forward_as_tuple(res, std::distance(std::begin(cont), res));
+    }
+};
 
 /**
  * Returns a tuple of an iterator to the maximum element and its index
@@ -38,38 +40,49 @@ auto min(const Container& cont, Comparator&& comp = std::less<void>()) {
  * @param op
  * @return {Element, index}
  */
-template<typename Container, typename Comparator>
-auto max(const Container& cont, Comparator&& comp = std::greater<void>()) {
-    auto res = std::min_element(std::begin(cont), std::end(cont), std::forward<Comparator>(comp));
-    return std::forward_as_tuple(res, std::distance(std::begin(cont), res));
-}
+struct max {
+    template<typename Container, typename Comparator>
+    auto operator()(const Container& cont, Comparator&& comp = std::greater<void>()) {
+        auto res = std::min_element(std::begin(cont), std::end(cont), std::forward<Comparator>(comp));
+        return std::forward_as_tuple(res, std::distance(std::begin(cont), res));
+    }
+};
 
 /**
  * Returns the sum of all the output of the UnaryOp in the container provided
  * @param cont
- * @param op
+ * @param op (optional) Unary operator which is applied to every element in the input container
  * @return the sum
  */
-template<typename Container, typename UnaryOp>
-auto sum(const Container& cont, UnaryOp&& op) {
-    using res_type = decltype(op(*cont.begin()));
-    res_type sum = 0;
-    for(auto& v : cont) {
-        sum += op(v);
+struct sum {
+
+    template<typename Iteratator, typename UnaryOp>
+    auto operator()(Iteratator start, Iteratator end, UnaryOp&& op) {
+        using res_type = decltype(op(*start));
+        res_type sum = 0;
+        for(auto it = start; it != end; ++it) {
+            sum += op(*it);
+        }
+        return sum;
     }
-    return sum;
-}
 
+    template<typename Container, typename UnaryOp>
+    auto operator()(const Container& cont, UnaryOp&& op) {
+        return (*this)(std::begin(cont), std::end(cont), op);
+    }
+    
+    template<typename Container>
+    auto operator()(const Container& cont) {
+        return sum(cont, [](auto& x) { return x; });
+    }
 
-/**
- * Returns the sum of all the value in the provided container
- * @param cont
- * @return the sum
- */
-template<typename Container>
-auto sum(const Container& cont) {
-    return sum(cont, [](auto& x) { return x; });
-}
+    template<typename Iteratator, typename UnaryOp>
+    auto operator()(Iteratator start, Iteratator end) {
+        return (*this)(start, end, [](auto& x) { return x; });
+    }
+
+};
+
 
 /**
  * Calculate the average value of the container
@@ -104,18 +117,34 @@ auto avg(const Container& cont, UnaryOp&& op) {
  * @param cont the container to calculate the centroid for
  * @return
  */
-template<size_t SkipLastN = 0, typename Container>
+template<typename Container>
 auto centroid(Container& cont) {
     using value_type = typename Container::value_type;
     value_type center;
     auto size = std::distance(std::begin(cont), std::end(cont));
     using namespace detail;
     for(auto& val : cont) {
-        element_add<SkipLastN>(center, val);
+        element_add(center, val);
     }
-    element_div<SkipLastN>(center, size);
+    element_div(center, size);
     return center;
 }
+
+
+/**
+ *
+ * @param cont the container to calculate the centroid for
+ * @return
+ */
+template<typename Container>
+struct centroid_f {
+
+    using result_type = typename Container::value_type;
+
+    auto operator()(Container& cont) {
+        return centroid(cont);
+    }
+};
 
 
 /**
@@ -127,14 +156,38 @@ auto centroid(Container& cont) {
  * @param element
  * @return the average
  */
-template<size_t SkipLastN = 0, typename Container, typename Result = float>
+template<typename Container, typename Result = float>
+Result sum_squared(const Container& cont, const typename Container::value_type& element) {
+    auto it = std::begin(cont),
+         end = std::end(cont);
+    if(it != end) {
+        Result sum = 0;
+        for(; it != end; ++it) {
+            sum += euclidean_distance(*it, element);
+        }
+        return sum;
+    } else {
+        return 0;
+    }
+}
+
+/**
+ * Calculates the sum of distance (euclidean) between all the points in the cointainer
+ * and the element provided
+ *
+ * If the element provided exists in cont, its weight will be considered
+ * @param cont
+ * @param element
+ * @return the average
+ */
+template<typename Container, typename Result = float>
 Result sum_distance_euclidean(const Container& cont, const typename Container::value_type& element) {
     auto it = std::begin(cont),
          end = std::end(cont);
     if(it != end) {
         Result sum = 0;
         for(; it != end; ++it) {
-            sum += distance_euclidean<SkipLastN>(*it, element);
+            sum += euclidean_distance(*it, element);
         }
         return sum;
     } else {
@@ -151,14 +204,14 @@ Result sum_distance_euclidean(const Container& cont, const typename Container::v
  * @param element
  * @return the average
  */
-template<size_t SkipLastN = 0, typename Container, typename Result = float>
+template<typename Container, typename Result = float>
 Result average_distance_euclidean(const Container& cont, const typename Container::value_type& element) {
     auto it = std::begin(cont),
          end = std::end(cont);
     if(it != end) {
         Result sum = 0;
         for(; it != end; ++it) {
-            sum += distance_euclidean<SkipLastN>(*it, element);
+            sum += euclidean_distance(*it, element);
         }
         return static_cast<Result>(sum) / static_cast<Result>(cont.size());
     } else {

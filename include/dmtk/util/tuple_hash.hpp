@@ -12,63 +12,40 @@
 #ifndef DMTK_UTIL_TUPLE_HASH_HPP
 #define DMTK_UTIL_TUPLE_HASH_HPP
 
+#include <utility>
+#include <boost/functional/hash.hpp>
 
 
-/**
- *@file Provides operations on collections of Element (see element.hpp)
- * which provide the ability for the user to use custom data types
- */
+DMTK_NAMESPACE_BEGIN
 
-//The following is included for hash functionality out of the box
-//see https://stackoverflow.com/questions/1250599/how-to-unordered-settupleint-int
-namespace std{
-    namespace
-    {
+namespace detail {
 
-        // Code from boost
-        // Reciprocal of the golden ratio helps spread entropy
-        //     and handles duplicates.
-        // See Mike Seymour in magic-numbers-in-boosthash-combine:
-        //     https://stackoverflow.com/questions/4948780
-
-        template <class T>
-        inline void hash_combine(std::size_t& seed, T const& v)
-        {
-            seed ^= hash<T>()(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-        }
-
-        // Recursive template code derived from Matthieu M.
-        template <class Tuple, size_t Index = std::tuple_size<Tuple>::value - 1>
-        struct HashValueImpl
-        {
-          static void apply(size_t& seed, Tuple const& tuple)
-          {
-            HashValueImpl<Tuple, Index-1>::apply(seed, tuple);
-            hash_combine(seed, get<Index>(tuple));
-          }
-        };
-
-        template <class Tuple>
-        struct HashValueImpl<Tuple,0>
-        {
-          static void apply(size_t& seed, Tuple const& tuple)
-          {
-            hash_combine(seed, get<0>(tuple));
-          }
-        };
+    /**
+     * Helper function to apply boost::hash_combine on all elements of a tuple
+     */
+    template <typename ... T, size_t ... Indexes>
+    void hash_tuple_helper(size_t& seed, const std::tuple<T...>& tuple, std::index_sequence<Indexes...>) {
+        ((boost::hash_combine(seed, std::get<Indexes>(tuple))),...);
     }
+}
 
-    template <typename ... TT>
-    struct hash<std::tuple<TT...>>
-    {
-        size_t
-        operator()(std::tuple<TT...> const& tt) const
+DMTK_NAMESPACE_END
+namespace std{
+    
+    /**
+     * @brief Provides specialization for all tuple types (but not the value
+     *        types which a tuple is composed of) such that tuples may be used
+     *        for hashing purposes.
+     * @see dmtk::detail::hash_tuple_helper
+     */
+    template <typename ... T>
+    struct hash<std::tuple<T...>> {
+        size_t operator()(const std::tuple<T...>& tuple) const
         {
             size_t seed = 0;
-            HashValueImpl<std::tuple<TT...> >::apply(seed, tt);
+            dmtk::detail::hash_tuple_helper(seed, tuple, std::index_sequence_for<T...>{});
             return seed;
         }
-
     };
 }
 

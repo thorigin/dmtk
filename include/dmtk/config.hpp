@@ -14,5 +14,11 @@
 #define DMTK_NAMESPACE_BEGIN namespace dmtk {
 #define DMTK_NAMESPACE_END }
 
+#ifndef DMTK_FP_TYPE
+#define DMTK_FP_TYPE double
+#endif
+
+using fp_type = DMTK_FP_TYPE;
+
 #endif /* DMTK_CONFIG_HPP */
 
