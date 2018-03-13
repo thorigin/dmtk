@@ -43,10 +43,55 @@ namespace detail {
         tuple_to_csv_line_helper_2(os, tuple, std::index_sequence_for<T...>{});
     }
 
+    struct read_into_container_tag {};
+    struct read_tuple_into_container_tag : read_into_container_tag{};
+    struct read_value_into_container_tag : read_into_container_tag{};
+    
+    template<typename Container>
+    void csv_read_into_container(std::istream& fs, Container& res, read_tuple_into_container_tag) {
+        using value_type = typename Container::value_type;
+        std::string line;
+        while(std::getline(fs, line)) {
+            std::istringstream iss(line);
+            value_type value;
+            if(!detail::csv_read_tuple(value, iss)) {
+                throw std::runtime_error("Failing reading into tuple");
+            }
+            res.emplace_back(std::move(value));
+        }
+        return res;
+    }
+
+    template<typename Container>
+    void csv_read_into_container(std::istream& fs, Container& res, read_value_into_container_tag) {
+        using value_type = typename Container::value_type;
+        std::string line;
+        while(std::getline(fs, line)) {
+            std::istringstream iss(line);
+            value_type value;
+            if(!(iss >> value)) {
+                throw std::runtime_error("Failing reading value");
+            }
+            res.emplace_back(std::move(value));
+        }
+    }
+    
+    template<typename Container>
+    void csv_read_into_container(std::istream& fs, Container& res) {
+        return csv_read_into_container(
+            fs,
+            res,
+            std::conditional_t<
+                is_tuple_v<typename Container::value_type>,
+                read_tuple_into_container_tag,
+                read_value_into_container_tag
+            >{}
+        );
+    }
 }
 
 /**
- * Write container out as CSV
+ * @brief Write container out as CSV
  * @param out
  * @param cont
  * @return
@@ -58,29 +103,50 @@ void csv_write(std::ostream& os, Container& cont) {
     }
 }
 
+/**
+ * @brief Write from CSV file into the provided vector
+ */
+template<typename Container>
+auto csv_into(const std::string& file, Container& container, bool first_line_header = true) {
+    std::fstream fs(file, std::ios::in);
+    if(fs.is_open() && fs.good()) {                     
+        std::string line;
+        if(first_line_header && !std::getline(fs, line)) {
+            throw std::runtime_error("Failed reading header");
+        }
+        using value_type = typename Container::value_type;
+        std::vector<value_type> res;;
+        detail::csv_read_into_container(fs, container);
+    } else {
+        throw new std::runtime_error("Error occurred opening file");
+    }
+}
+
 template<typename ... Types>
 auto csv(const std::string& file, bool first_line_header = true) {
+    
+    static_assert(sizeof...(Types) > 0, "Provide one or more types");
+    
     std::fstream fs(file, std::ios::in);
     if(fs.is_open() && fs.good()) {
-
-        using node_type = node<Types...>;
-
-        std::vector<node_type> res;
+       
         std::string line;
 
         if(first_line_header && !std::getline(fs, line)) {
             throw std::runtime_error("Failed reading header");
         }
 
-        //read rows
-        while(std::getline(fs, line)) {
-            std::istringstream iss(line);
-            node_type new_tuple;
-            if(!detail::csv_read_tuple(new_tuple, iss)) {
-                throw std::runtime_error("Failing reading into tuple");
-            }
-            res.emplace_back(std::move(new_tuple));
-        }
+        /**
+         * If a single type is specified, there's no need to wrap it ina tuple
+         * unwrap and read the values
+         */
+        using value_type = std::conditional_t<
+            sizeof...(Types) == 1,
+            std::tuple_element_t<0, std::tuple<Types...>>,
+            node<Types...>
+        >;
+        std::vector<value_type> res;
+        detail::csv_read_into_container(fs, res);
         return res;
     } else {
         throw new std::runtime_error("Error occurred opening file");
