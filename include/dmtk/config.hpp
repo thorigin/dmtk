@@ -14,6 +14,9 @@
 #define DMTK_NAMESPACE_BEGIN namespace dmtk {
 #define DMTK_NAMESPACE_END }
 
+#define DMTK_DETAIL_NAMESPACE_BEGIN namespace dmtk { namespace detail {
+#define DMTK_DETAIL_NAMESPACE_END }}
+
 #ifndef DMTK_FP_TYPE
 #define DMTK_FP_TYPE double
 #endif

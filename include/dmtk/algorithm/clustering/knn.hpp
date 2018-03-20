@@ -68,7 +68,7 @@ auto predict_by_knn(
             }
         }
 
-        //Mark closet sample_row as used
+        //Mark closest sample_row as used
         used_rows.emplace(closest_sample_row_idx);
 
         //Increment hit counter for label

@@ -18,6 +18,8 @@
 #include <unordered_map>
 #include "dmtk/config.hpp"
 
+DMTK_NAMESPACE_BEGIN
+
 /**
  * @brief Cluster container, a common data type used for storing the result of
  *        clustering algorithms.
@@ -111,6 +113,7 @@ struct clustering_traits {
     using sampling_scores = std::unordered_map<size_t, cluster_score_vec>;
 };
 
+DMTK_NAMESPACE_END
 
 #endif /* DMTK_ALGORITHM_CLUSTERING_COMMON_HPP */
 
