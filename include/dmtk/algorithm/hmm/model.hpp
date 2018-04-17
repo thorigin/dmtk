@@ -314,6 +314,7 @@ hmm_viterbi_training(   std::vector<Emission> observations,
          */
         for(auto& ntp : transition_count) {
             auto& [from_st, to_st] = ntp.first;
+            DMTK_UNUSED(from_st);
             auto total = sum_of_prob_transition_to(to_st);
             new_transition_prob[ntp.first] = ntp.second / total;
         }
