@@ -19,21 +19,31 @@
 
 /**
  * @file Provides for pseudo element views, i.e. the ability to slice and
- *       manipulate the view of of imported data.
+ *       manipulate the view of imported data.
  */
 
 DMTK_NAMESPACE_BEGIN
 
 namespace detail {
 
-    template<class ... T, size_t ... Indexes>
-    auto element_view_helper(std::tuple<T...>& tuple, std::index_sequence<Indexes...>) {
-        return std::tie(std::get<Indexes>(tuple)...);
+    template<typename ... T, size_t Index>
+    std::tuple_element_t<Index, std::tuple<T...>>& element_view_helper(std::tuple<T...>& tuple, std::index_sequence<Index>) {
+        return std::get<Index>(tuple);
     }
 
-    template<class ... T, size_t ... Indexes>
-    auto element_copy_helper(std::tuple<T...>& tuple, std::index_sequence<Indexes...>) {
-        return std::make_tuple(std::get<Indexes>(tuple)...);
+    template<typename ... T, size_t FirstIndex, size_t SecondIndex, size_t ... RestIndexes>
+    auto element_view_helper(std::tuple<T...>& tuple, std::index_sequence<FirstIndex, SecondIndex, RestIndexes...>) {
+        return std::tie(std::get<FirstIndex>(tuple), std::get<SecondIndex>(tuple), std::get<RestIndexes>(tuple)...);
+    }
+
+    template<typename ... T, size_t Index>
+    auto element_copy_helper(std::tuple<T...>& tuple, std::index_sequence<Index>) {
+        return std::get<Index>(tuple);
+    }
+
+    template<typename ... T, size_t FirstIndex, size_t SecondIndex, size_t ... RestIndexes>
+    auto element_copy_helper(std::tuple<T...>& tuple, std::index_sequence<FirstIndex, SecondIndex, RestIndexes...>) {
+        return std::make_tuple(std::get<FirstIndex>(tuple), std::get<SecondIndex>(tuple), std::get<RestIndexes>(tuple)...);
     }
 
 }
@@ -43,7 +53,7 @@ namespace detail {
  *        specified selected indexes
  */
 template<size_t ... Indexes, typename Element>
-auto element_view(Element& ele) {
+auto element_view(Element& ele) -> decltype(detail::element_view_helper(ele, std::index_sequence<Indexes...>{})) {
     return detail::element_view_helper(ele, std::index_sequence<Indexes...>{});
 }
 
@@ -106,7 +116,7 @@ struct element_view_f {
 
     using result_type = element_view_result_t<Element, Indexes...>;
     
-    auto operator()(Element& ele) const {
+    result_type operator()(Element& ele) const {
         return element_view<Indexes...>(ele);
     }
 };

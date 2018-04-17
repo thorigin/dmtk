@@ -59,7 +59,6 @@ namespace detail {
             }
             res.emplace_back(std::move(value));
         }
-        return res;
     }
 
     template<typename Container>

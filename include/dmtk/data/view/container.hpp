@@ -52,17 +52,17 @@ namespace detail {
 template<typename Container, size_t ... Indexes>
 struct view_container {
 
+    constexpr static bool is_singleton = sizeof...(Indexes) == 1;
+
     using inner_value_type = typename Container::value_type;
-    using inner_iterator = std::decay_t<typename Container::iterator>;
+    using inner_iterator =typename Container::iterator;
     using iterator = detail::view_container_transforming_iterator_t<inner_iterator, Indexes...>;
     using const_iterator =  detail::view_container_transforming_iterator_t<inner_iterator, Indexes...>;
-    using value_type = element_view_result_t<typename Container::value_type>;
+    using value_type = element_view_result_t<inner_value_type, Indexes...>;
     using size_type = typename Container::size_type;
     using difference_type = typename Container::difference_type;
-
     using transformation_func_type = element_view_f<inner_value_type, Indexes...>;
     
-
     view_container(Container& cont) : ref(cont) {}
 
     view_container(const view_container& ) = default;
