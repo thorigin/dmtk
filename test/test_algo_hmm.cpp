@@ -43,7 +43,6 @@ BOOST_AUTO_TEST_CASE( test_algo_hmm_probability_of_loaded_dice ) {
         }
     );
 
-    std::cout << std::setprecision(100);
     BOOST_REQUIRE_CLOSE(2.85087e-15, res, 0.03);
     std::cout << "The result is: " << res << "\n";
 }
@@ -87,7 +86,7 @@ BOOST_AUTO_TEST_CASE( test_algo_hmm_probability_of_loaded_dice_logarithmic ) {
         hmm_logarithmic_scale_tag{}
     );
 
-    BOOST_REQUIRE_CLOSE(-46.817516326904297, res, 0.01);
+    BOOST_REQUIRE_CLOSE(-48.317516326904297, res, 0.01);
     std::cout << "The result is: " << res << "\n";
     std::cout << "\n\n";
 }
