@@ -40,7 +40,7 @@ struct euclidean_distance_metric {
         fp_type best = type == min ? std::numeric_limits<fp_type>::max() : std::numeric_limits<fp_type>::min();        
         for(auto ait = a.begin(), a_end = a.end(); ait != a_end; ++ait) {
             for(auto bit = b.begin(), b_end = b.end(); bit != b_end; ++bit) {
-                auto tmp = euclidean_distance_squared(*ait, *bit);                
+                auto tmp = euclidean_distance(*ait, *bit);
                 if(comparator(tmp, best)) {
                     best = tmp;
                 }
