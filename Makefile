@@ -28,7 +28,7 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 INC_TEST_FLAGS := $(INC_FLAGS)
 
 CCPFLAGS_MODE_DEBUG :=  -O0 -g3
-CCPFLAGS_MODE_RELEASE :=  -O3
+CCPFLAGS_MODE_RELEASE :=  -O3 -DBOOST_DISABLE_ASSERTS
 CPPFLAGS := -fdiagnostics-color=auto -std=c++17 -Wall -Wextra -Wpedantic -fopenmp -pipe -MMD -MP $(CCPFLAGS_MODE_DEBUG)
 CCPOBJFLAGS := $(CPPFLAGS) $(INC_FLAGS)
 CCPTESTFLAGS := $(CPPFLAGS) $(TEST_LDFLAGS) $(CPPFLAGS) $(INC_TEST_FLAGS) -DBOOST_TEST_DYN_LINK
@@ -41,12 +41,12 @@ all: $(OBJS) $(TESTS)
 
 # c++ source
 $(BUILD_DIR)/src/%.cpp.o: src/%.cpp  $(HEADERS)
-	$(MKDIR_P) $(dir $@)
+	@$(MKDIR_P) $(dir $@)
 	$(CXX) $(CCPOBJFLAGS) $(CXXFLAGS) $(LDFLAGS) -c $< -o $@
 
 ## c++ test source
 $(BUILD_DIR)/test/%.bin : test/%.cpp $(HEADERS)
-	$(MKDIR_P) $(dir $@)
+	@$(MKDIR_P) $(dir $@)
 	$(CXX) $(CCPTESTFLAGS) $(CXXFLAGS) $(TEST_LDFLAGS) $(SRCS_IMPL) $< -o $@
 
 clean:
