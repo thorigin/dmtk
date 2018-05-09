@@ -115,12 +115,29 @@ auto view(Container& cont) {
 }
 
 template<size_t ... Indexes, typename Container>
-auto copy(Container& cont) {
+auto copy(const Container& cont) {
     static_assert(sizeof...(Indexes) > 0, "At least one or more index must be specified for copy");
     std::vector<element_copy_result_t<typename Container::value_type, Indexes...>> vec;
     vec.reserve(cont.size());
     for(auto&& v : cont) {
         vec.emplace_back(element_copy<Indexes...>(v));
+    }
+    return vec;
+}
+
+/**
+ * Maps a container by a UnaryFunction to a container
+ * @param cont
+ * @param func
+ * @return
+ */
+template<typename Container, typename UnaryFunction>
+auto map(const Container& cont, UnaryFunction func) {
+    using result_type = decltype(func(std::declval<typename Container::value_type&>()));
+    std::vector<result_type> vec;
+    vec.reserve(cont.size());
+    for(auto&& v : cont) {
+        vec.emplace_back(func(v));
     }
     return vec;
 }

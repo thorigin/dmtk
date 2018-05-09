@@ -37,12 +37,12 @@ namespace detail {
     }
 
     template<typename ... T, size_t Index>
-    auto element_copy_helper(std::tuple<T...>& tuple, std::index_sequence<Index>) {
+    auto element_copy_helper(const std::tuple<T...>& tuple, std::index_sequence<Index>) {
         return std::get<Index>(tuple);
     }
 
     template<typename ... T, size_t FirstIndex, size_t SecondIndex, size_t ... RestIndexes>
-    auto element_copy_helper(std::tuple<T...>& tuple, std::index_sequence<FirstIndex, SecondIndex, RestIndexes...>) {
+    auto element_copy_helper(const std::tuple<T...>& tuple, std::index_sequence<FirstIndex, SecondIndex, RestIndexes...>) {
         return std::make_tuple(std::get<FirstIndex>(tuple), std::get<SecondIndex>(tuple), std::get<RestIndexes>(tuple)...);
     }
 
@@ -63,7 +63,7 @@ auto element_view(Element& ele) -> decltype(detail::element_view_helper(ele, std
  *        specified selected indexes
  */
 template<size_t ... Indexes, typename Element>
-auto element_copy(Element& ele) {
+auto element_copy(const Element& ele) {
     return detail::element_copy_helper(ele, std::index_sequence<Indexes...>{});
 }
 
